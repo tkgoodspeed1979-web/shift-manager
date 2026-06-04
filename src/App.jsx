@@ -1,4 +1,19 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, onValue, set, off } from "firebase/database";
+
+/* ── Firebase設定 ── */
+const firebaseConfig = {
+  apiKey: "AIzaSyAup1IQAhoxzJvDUO4M5LbUM0f4zszPmE4",
+  authDomain: "shift-manager-65d41.firebaseapp.com",
+  databaseURL: "https://shift-manager-65d41-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "shift-manager-65d41",
+  storageBucket: "shift-manager-65d41.firebasestorage.app",
+  messagingSenderId: "424438299776",
+  appId: "1:424438299776:web:fab1e6cbaf61885f31fa65"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
 
 /* ─────────────────────────────────────────
    定数・ユーティリティ
@@ -153,9 +168,55 @@ export default function ShiftManager(){
   const [loadText,setLoadText]=useState("");
   const [clipboard,setClipboard]=useState(null);
   const [pastedCells,setPastedCells]=useState(new Set());
-  const [copyMode,setCopyMode]=useState(false); // コピーモード（セル選択待ち）
-  const [showPdfModal,setShowPdfModal]=useState(false); // PDFプレビューモーダル
+  const [copyMode,setCopyMode]=useState(false);
+  const [showPdfModal,setShowPdfModal]=useState(false);
+  const [syncStatus,setSyncStatus]=useState("接続中...");
   const tableRef=useRef(null);
+  const isSaving=useRef(false);
+  const saveTimer=useRef(null);
+
+  // Firebase リアルタイム同期
+  useEffect(()=>{
+    const dbRef=ref(db,"shiftData");
+    const unsub=onValue(dbRef,(snapshot)=>{
+      if(isSaving.current) return; // 自分が保存中は無視
+      const data=snapshot.val();
+      if(data){
+        if(data.employees) setEmployees(data.employees);
+        if(data.shifts)    setShifts(data.shifts);
+        if(data.budgets)   setBudgets(data.budgets);
+        if(data.nextId)    setNextId(data.nextId);
+      }
+      setSyncStatus("同期済み ✓");
+    },(error)=>{
+      setSyncStatus("接続エラー");
+    });
+    return ()=>off(dbRef);
+  },[]);
+
+  // Firebaseに保存（デバウンス：2秒後に保存）
+  const saveToFirebase=(empData,shiftData,budgetData,nid)=>{
+    clearTimeout(saveTimer.current);
+    setSyncStatus("保存中...");
+    saveTimer.current=setTimeout(()=>{
+      isSaving.current=true;
+      set(ref(db,"shiftData"),{
+        employees:empData||employees,
+        shifts:shiftData||shifts,
+        budgets:budgetData||budgets,
+        nextId:nid||nextId,
+      }).then(()=>{
+        setSyncStatus("同期済み ✓");
+        setTimeout(()=>{ isSaving.current=false; },500);
+      }).catch(()=>{
+        setSyncStatus("保存失敗");
+        isSaving.current=false;
+      });
+    },2000);
+  };
+
+  // データ変更時に自動保存
+  useEffect(()=>{ saveToFirebase(employees,shifts,budgets,nextId); },[employees,shifts,budgets]);
 
   const daysInMonth=new Date(year,month,0).getDate();
   const allDays=Array.from({length:daysInMonth},(_,i)=>i+1);
@@ -808,17 +869,12 @@ export default function ShiftManager(){
             </div>
           </div>
           <div style={{display:"flex",gap:4}}>
-            <button onClick={saveJson}
-              style={{height:34,padding:"0 8px",borderRadius:8,border:"none",cursor:"pointer",
-                background:"rgba(255,255,255,0.2)",color:"#fff",fontWeight:700,fontSize:11,whiteSpace:"nowrap"}}>
-              💾 保存
-            </button>
-            <button onClick={()=>setShowLoadModal(true)}
-              style={{height:34,padding:"0 8px",borderRadius:8,border:"none",cursor:"pointer",
-                background:savedMsg==="loaded"?"#22c55e":"rgba(255,255,255,0.2)",
-                color:"#fff",fontWeight:700,fontSize:11,whiteSpace:"nowrap",transition:"background 0.3s"}}>
-              {savedMsg==="loaded"?"✓ 読込済":"📂 読込"}
-            </button>
+            <div style={{height:34,padding:"0 10px",borderRadius:8,
+              background:"rgba(255,255,255,0.15)",
+              color: syncStatus.includes("✓")?"#a0ffc0":syncStatus.includes("エラー")||syncStatus.includes("失敗")?"#fca5a5":"#fff",
+              fontWeight:700,fontSize:11,display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
+              {syncStatus.includes("✓")?"☁️":"⏳"} {syncStatus}
+            </div>
             {view==="table"&&(
               <button onClick={printPDF}
                 style={{height:34,padding:"0 8px",borderRadius:8,border:"none",cursor:"pointer",
