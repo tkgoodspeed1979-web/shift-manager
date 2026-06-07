@@ -173,13 +173,14 @@ export default function ShiftManager(){
   const [syncStatus,setSyncStatus]=useState("接続中...");
   const tableRef=useRef(null);
   const isSaving=useRef(false);
+  const isLoaded=useRef(false);
   const saveTimer=useRef(null);
 
-  // Firebase リアルタイム同期
+  // Firebase：起動時に1回だけ読み込み
   useEffect(()=>{
     const dbRef=ref(db,"shiftData");
     const unsub=onValue(dbRef,(snapshot)=>{
-      if(isSaving.current) return; // 自分が保存中は無視
+      if(isLoaded.current) return; // 初回のみ読み込み
       const data=snapshot.val();
       if(data){
         if(data.employees) setEmployees(data.employees);
@@ -187,6 +188,7 @@ export default function ShiftManager(){
         if(data.budgets)   setBudgets(data.budgets);
         if(data.nextId)    setNextId(data.nextId);
       }
+      isLoaded.current=true;
       setSyncStatus("同期済み ✓");
     },(error)=>{
       setSyncStatus("接続エラー");
@@ -194,8 +196,10 @@ export default function ShiftManager(){
     return ()=>off(dbRef);
   },[]);
 
-  // Firebaseに保存（デバウンス：2秒後に保存）
+  // Firebaseに保存（デバウンス：3秒後）
   const saveToFirebase=(empData,shiftData,budgetData,nid)=>{
+    if(!isLoaded.current) return; // 初回読込前は保存しない
+    if(isSaving.current) return;
     clearTimeout(saveTimer.current);
     setSyncStatus("保存中...");
     saveTimer.current=setTimeout(()=>{
@@ -207,16 +211,19 @@ export default function ShiftManager(){
         nextId:nid||nextId,
       }).then(()=>{
         setSyncStatus("同期済み ✓");
-        setTimeout(()=>{ isSaving.current=false; },500);
+        setTimeout(()=>{ isSaving.current=false; },1000);
       }).catch(()=>{
-        setSyncStatus("保存失敗");
+        setSyncStatus("保存失敗 ✗");
         isSaving.current=false;
       });
-    },2000);
+    },3000);
   };
 
   // データ変更時に自動保存
-  useEffect(()=>{ saveToFirebase(employees,shifts,budgets,nextId); },[employees,shifts,budgets]);
+  useEffect(()=>{
+    if(!isLoaded.current) return;
+    saveToFirebase(employees,shifts,budgets,nextId);
+  },[employees,shifts,budgets]);
 
   const daysInMonth=new Date(year,month,0).getDate();
   const allDays=Array.from({length:daysInMonth},(_,i)=>i+1);
@@ -1155,25 +1162,25 @@ export default function ShiftManager(){
         </div>
       )}
 
-      {/* PDFモーダル */}
+      {/* PDFモーダル：スクロール可能なHTML表示 */}
       {showPdfModal&&(
-        <div style={{position:"fixed",inset:0,background:"#1a1a2e",zIndex:400,display:"flex",flexDirection:"column"}}>
+        <div style={{position:"fixed",inset:0,background:"#fff",zIndex:400,display:"flex",flexDirection:"column"}}>
+          {/* ヘッダー */}
           <div style={{background:"#2c5f8a",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-            <div style={{color:"#fff",fontWeight:700,fontSize:13}}>🖨 シフト表プレビュー</div>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <div style={{color:"#b8d4f0",fontSize:10}}>「…」→共有→プリント</div>
-              <button onClick={()=>setShowPdfModal(false)}
-                style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:8,
-                  color:"#fff",padding:"6px 14px",cursor:"pointer",fontWeight:700,fontSize:13}}>
-                ✕ 閉じる
-              </button>
+            <div>
+              <div style={{color:"#fff",fontWeight:700,fontSize:13}}>🖨 シフト表プレビュー</div>
+              <div style={{color:"#b8d4f0",fontSize:10}}>スクリーンショットで保存 → 写真アプリでPDF化</div>
             </div>
+            <button onClick={()=>setShowPdfModal(false)}
+              style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:8,
+                color:"#fff",padding:"6px 14px",cursor:"pointer",fontWeight:700,fontSize:13}}>
+              ✕ 閉じる
+            </button>
           </div>
-          <iframe
-            srcDoc={pdfHtml()}
-            style={{flex:1,border:"none",background:"#fff",width:"100%"}}
-            title="シフト表PDF"
-          />
+          {/* シフト表本体：スクロール可能 */}
+          <div style={{flex:1,overflowY:"auto",overflowX:"auto",background:"#fff",padding:"8px 4px"}}
+            dangerouslySetInnerHTML={{__html:pdfHtml().replace(/<!DOCTYPE html>[\s\S]*?<body>/,"").replace(/<\/body>[\s\S]*?<\/html>/,"")}}>
+          </div>
         </div>
       )}
 
