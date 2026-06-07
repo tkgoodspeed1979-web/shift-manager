@@ -148,6 +148,104 @@ function StaffList({employees,setEmployees}){
 /* ─────────────────────────────────────────
    メインコンポーネント
 ───────────────────────────────────────── */
+/* ── PdfTable：自動スケール縮小でiPhone1画面に収める ── */
+function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolved,calcWork,toHHMM,empMins,dayStats,isSun,isSat,dow,ROLES}){
+  const containerRef=useRef(null);
+  const tableRef=useRef(null);
+  const [scale,setScale]=useState(1);
+
+  useEffect(()=>{
+    if(!containerRef.current||!tableRef.current) return;
+    const cw=containerRef.current.offsetWidth;
+    const tw=tableRef.current.offsetWidth;
+    if(tw>cw) setScale(cw/tw);
+  },[]);
+
+  const staffCount=sortedEmployees.length;
+  const fs=staffCount<=8?8:staffCount<=12?7:staffCount<=16?6:5;
+  const rh=staffCount<=8?36:staffCount<=12?30:staffCount<=16?26:22;
+
+  const cellStyle=(t)=>{
+    if(t==="off")      return {bg:"#e0e0e0",bd:"#999"};
+    if(t==="through")  return {bg:"#d8b4fe",bd:"#7c3aed"};
+    if(t==="prep")     return {bg:"#fde68a",bd:"#b45309"};
+    if(t==="business") return {bg:"#bfdbfe",bd:"#1d4ed8"};
+    return {bg:"#fff",bd:"#ccc"};
+  };
+
+  return(
+    <div ref={containerRef} style={{width:"100%",overflow:"hidden"}}>
+      <div ref={tableRef} style={{
+        transformOrigin:"top left",
+        transform:`scale(${scale})`,
+        width: scale<1 ? `${100/scale}%` : "100%",
+      }}>
+        <div style={{fontFamily:"-apple-system,sans-serif",fontSize:10,fontWeight:700,color:"#2c5f8a",marginBottom:4,padding:"0 2px"}}>
+          {year}年{month}月 シフト表（{period==="first"?`前半 1〜15日`:`後半 16〜${daysInMonth}日`}）
+        </div>
+        <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"auto"}}>
+          <thead>
+            <tr style={{background:"#2c5f8a"}}>
+              <th style={{padding:"2px 4px",textAlign:"left",color:"#fff",border:"1px solid #4a7faa",fontSize:fs,whiteSpace:"nowrap",minWidth:60}}>名前/番号</th>
+              {days.map(d=>{
+                const dw_=dow(year,month,d);
+                const c=isSun(year,month,d)?"#ffb3b3":isSat(year,month,d)?"#b3d4ff":"#b8d4f0";
+                return(
+                  <th key={d} style={{padding:"2px 1px",textAlign:"center",color:"#fff",border:"1px solid #4a7faa",fontSize:fs,minWidth:fs*3.5}}>
+                    {d}<br/><span style={{fontSize:fs-1,color:c}}>{dw_}</span>
+                  </th>
+                );
+              })}
+              <th style={{padding:"2px",textAlign:"center",color:"#fff",border:"1px solid #4a7faa",fontSize:fs}}>合計</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedEmployees.map(emp=>{
+              const ri=ROLES[emp.role]||ROLES.business;
+              return(
+                <tr key={emp.id}>
+                  <td style={{padding:"1px 3px",border:"2px solid #aaa",whiteSpace:"nowrap",borderLeft:`3px solid ${ri.border}`,background:"#f8fafc",height:rh}}>
+                    <b style={{fontSize:fs,color:"#1e293b"}}>{emp.name}</b><br/>
+                    <span style={{fontSize:fs-1,color:"#888"}}>{emp.empNo}</span>
+                  </td>
+                  {days.map(d=>{
+                    const s=gs(emp.id,d),t=resolved(emp.id,d);
+                    const hasShift=s.start||s.type;
+                    const {bg,bd}=hasShift?cellStyle(t):{bg:"#fff",bd:"#ccc"};
+                    const w=calcWork(s.start,s.end);
+                    return(
+                      <td key={d} style={{padding:"1px",textAlign:"center",border:`2px solid ${bd}`,background:bg,fontSize:fs-1,lineHeight:1.2,height:rh}}>
+                        {t==="off"?<span style={{color:"#555",fontWeight:700}}>休</span>
+                        :s.start?<><span style={{color:"#1e3a5f",fontWeight:700,display:"block"}}>{s.start}</span><span style={{color:"#1e3a5f",fontWeight:700,display:"block"}}>{s.end||""}</span><b style={{color:"#c05000"}}>{toHHMM(w)||""}</b></>
+                        :null}
+                      </td>
+                    );
+                  })}
+                  <td style={{textAlign:"center",border:"2px solid #aaa",fontWeight:700,color:"#2c5f8a",padding:"1px",fontSize:fs,background:"#e8eef4",height:rh}}>
+                    {toHHMM(empMins(emp.id))||"—"}
+                  </td>
+                </tr>
+              );
+            })}
+            {[
+              {l:"仕込み人数",c:"#7a5000",bg:"#fef3c7",bd:"#d97706",fn:d=>dayStats(d).prepCnt||"—"},
+              {l:"営業人数",  c:"#1e3a8a",bg:"#dbeafe",bd:"#2563eb",fn:d=>dayStats(d).bizCnt||"—"},
+            ].map(row=>(
+              <tr key={row.l} style={{background:row.bg}}>
+                <td style={{padding:"2px 4px",border:`2px solid ${row.bd}`,fontWeight:700,color:row.c,fontSize:fs,whiteSpace:"nowrap"}}>{row.l}</td>
+                {days.map(d=>(
+                  <td key={d} style={{textAlign:"center",border:`2px solid ${row.bd}`,fontSize:fs,fontWeight:700,color:row.c,padding:"1px",background:row.bg}}>{row.fn(d)}</td>
+                ))}
+                <td style={{border:`2px solid ${row.bd}`,background:row.bg}}/>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function ShiftManager(){
   const now=new Date();
   const [year,setYear]   =useState(now.getFullYear());
@@ -1162,14 +1260,14 @@ export default function ShiftManager(){
         </div>
       )}
 
-      {/* PDFモーダル：スクロール可能なHTML表示 */}
+      {/* PDFモーダル：1画面に縮小表示 */}
       {showPdfModal&&(
         <div style={{position:"fixed",inset:0,background:"#fff",zIndex:400,display:"flex",flexDirection:"column"}}>
           {/* ヘッダー */}
           <div style={{background:"#2c5f8a",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
             <div>
               <div style={{color:"#fff",fontWeight:700,fontSize:13}}>🖨 シフト表プレビュー</div>
-              <div style={{color:"#b8d4f0",fontSize:10}}>スクリーンショットで保存 → 写真アプリでPDF化</div>
+              <div style={{color:"#b8d4f0",fontSize:10}}>スクリーンショット → 写真アプリ → PDF</div>
             </div>
             <button onClick={()=>setShowPdfModal(false)}
               style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:8,
@@ -1177,9 +1275,16 @@ export default function ShiftManager(){
               ✕ 閉じる
             </button>
           </div>
-          {/* シフト表本体：スクロール可能 */}
-          <div style={{flex:1,overflowY:"auto",overflowX:"auto",background:"#fff",padding:"8px 4px"}}
-            dangerouslySetInnerHTML={{__html:pdfHtml().replace(/<!DOCTYPE html>[\s\S]*?<body>/,"").replace(/<\/body>[\s\S]*?<\/html>/,"")}}>
+          {/* テーブルをscaleで縮小して1画面に収める */}
+          <div style={{flex:1,overflow:"hidden",background:"#fff",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:4}}>
+            <PdfTable
+              sortedEmployees={sortedEmployees}
+              days={days} year={year} month={month} period={period}
+              daysInMonth={daysInMonth}
+              gs={gs} resolved={resolved} calcWork={calcWork} toHHMM={toHHMM}
+              empMins={empMins} dayStats={dayStats}
+              isSun={isSun} isSat={isSat} dow={dow} ROLES={ROLES}
+            />
           </div>
         </div>
       )}
