@@ -124,8 +124,8 @@ function StaffList({employees,setEmployees}){
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:16,color:"#bbb",cursor:"grab"}}>☰</span>
                   <div>
-                    <div style={{fontWeight:700,fontSize:14,color:"#2c3e50"}}>{emp.name}</div>
-                    <div style={{fontSize:11,color:"#888",marginTop:2}}>
+                    <div style={{fontWeight:800,fontSize:15,color:"#1e293b"}}>{emp.name}</div>
+                    <div style={{fontSize:12,color:"#64748b",marginTop:2}}>
                       {emp.empNo||"（番号なし）"}
                       <span style={{marginLeft:6,padding:"1px 6px",borderRadius:4,fontSize:10,background:ri.color,color:ri.text,fontWeight:700}}>{ri.label}</span>
                     </div>
@@ -791,10 +791,10 @@ export default function ShiftManager(){
         <td style={{padding:"6px",position:"sticky",left:0,zIndex:5,background:"#fff",
           borderRight:"2px solid #dce6f0",borderBottom:"1px solid #e8eef4"}}>
           <div style={{display:"flex",alignItems:"center",gap:4}}>
-            <span style={{width:6,height:6,borderRadius:"50%",background:ri.border,flexShrink:0}}/>
+            <span style={{width:7,height:7,borderRadius:"50%",background:ri.border,flexShrink:0}}/>
             <div>
-              <div style={{fontWeight:700,fontSize:11,color:"#2c3e50",whiteSpace:"nowrap"}}>{emp.name}</div>
-              <div style={{fontSize:10,color:"#888"}}>{emp.empNo}</div>
+              <div style={{fontWeight:800,fontSize:14,color:"#1e293b",whiteSpace:"nowrap"}}>{emp.name}</div>
+              <div style={{fontSize:11,color:"#64748b",fontWeight:500}}>{emp.empNo}</div>
             </div>
           </div>
         </td>
