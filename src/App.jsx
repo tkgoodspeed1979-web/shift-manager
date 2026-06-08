@@ -162,8 +162,9 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
   },[]);
 
   const staffCount=sortedEmployees.length;
-  const fs=staffCount<=8?8:staffCount<=12?7:staffCount<=16?6:5;
-  const rh=staffCount<=8?36:staffCount<=12?30:staffCount<=16?26:22;
+  const fs=staffCount<=8?10:staffCount<=12?9:staffCount<=16?8:7;
+  const nameFs=staffCount<=8?13:staffCount<=12?12:staffCount<=16?11:10;
+  const rh=staffCount<=8?44:staffCount<=12?38:staffCount<=16?34:28;
 
   const cellStyle=(t)=>{
     if(t==="off")      return {bg:"#e0e0e0",bd:"#999"};
@@ -204,9 +205,9 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
               const ri=ROLES[emp.role]||ROLES.business;
               return(
                 <tr key={emp.id}>
-                  <td style={{padding:"1px 3px",border:"2px solid #aaa",whiteSpace:"nowrap",borderLeft:`3px solid ${ri.border}`,background:"#f8fafc",height:rh}}>
-                    <b style={{fontSize:fs,color:"#1e293b"}}>{emp.name}</b><br/>
-                    <span style={{fontSize:fs-1,color:"#888"}}>{emp.empNo}</span>
+                  <td style={{padding:"2px 5px",border:"2px solid #aaa",whiteSpace:"nowrap",borderLeft:`3px solid ${ri.border}`,background:"#f8fafc",height:rh}}>
+                    <b style={{fontSize:nameFs,color:"#1e293b",fontWeight:800}}>{emp.name}</b><br/>
+                    <span style={{fontSize:nameFs-2,color:"#64748b",fontWeight:500}}>{emp.empNo}</span>
                   </td>
                   {days.map(d=>{
                     const s=gs(emp.id,d),t=resolved(emp.id,d);
