@@ -248,6 +248,7 @@ export default function ShiftManager(){
   const [employees,setEmployees]=useState(INIT_EMPLOYEES);
   const [shifts,setShifts]  =useState({});
   const [budgets,setBudgets]=useState({});
+  const [hourlyWage,setHourlyWage]=useState(1200); // 平均時給（デフォルト1200円）
   const [view,setView]      =useState("table");
   const [editCell,setEditCell]=useState(null);
   const [newEmp,setNewEmp]  =useState({name:"",empNo:"",role:"business"});
@@ -279,6 +280,7 @@ export default function ShiftManager(){
         if(data.shifts)    setShifts(data.shifts);
         if(data.budgets)   setBudgets(data.budgets);
         if(data.nextId)    setNextId(data.nextId);
+        if(data.hourlyWage) setHourlyWage(data.hourlyWage);
       }
       isLoaded.current=true;
       setSyncStatus("同期済み ✓");
@@ -301,6 +303,7 @@ export default function ShiftManager(){
         shifts:shiftData||shifts,
         budgets:budgetData||budgets,
         nextId:nid||nextId,
+        hourlyWage:hourlyWage,
       }).then(()=>{
         setSyncStatus("同期済み ✓");
         setTimeout(()=>{ isSaving.current=false; },1000);
@@ -315,7 +318,7 @@ export default function ShiftManager(){
   useEffect(()=>{
     if(!isLoaded.current) return;
     saveToFirebase(employees,shifts,budgets,nextId);
-  },[employees,shifts,budgets]);
+  },[employees,shifts,budgets,hourlyWage]);
 
   const daysInMonth=new Date(year,month,0).getDate();
   const allDays=Array.from({length:daysInMonth},(_,i)=>i+1);
@@ -815,6 +818,20 @@ export default function ShiftManager(){
         {/* 月間集計 */}
         <div style={{background:"#2c5f8a",borderRadius:14,padding:"14px",marginBottom:14,color:"#fff"}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>📊 {year}年{month}月 月間集計</div>
+
+          {/* 平均時給入力 */}
+          <div style={{background:"rgba(255,255,255,0.15)",borderRadius:10,padding:"10px 14px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{color:"#b8d4f0",fontSize:11,fontWeight:700}}>平均時給</div>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <span style={{color:"#fff",fontSize:13}}>¥</span>
+              <input type="number" value={hourlyWage}
+                onChange={e=>setHourlyWage(Number(e.target.value))}
+                style={{width:80,padding:"6px 8px",borderRadius:8,border:"none",
+                  background:"rgba(255,255,255,0.2)",color:"#fff",fontSize:16,fontWeight:700,textAlign:"right"}}/>
+              <span style={{color:"#b8d4f0",fontSize:11}}>円/h</span>
+            </div>
+          </div>
+
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
             {[
               {l:"総労働時間",v:toHHMM(ms.totalMins)||"—"},
@@ -826,6 +843,31 @@ export default function ShiftManager(){
               </div>
             ))}
           </div>
+
+          {/* 人件費率 */}
+          {(()=>{
+            const totalHours=ms.totalMins/60;
+            const laborCost=totalHours*hourlyWage;
+            const laborRate=ms.totalBudget>0&&laborCost>0?((laborCost/ms.totalBudget)*100).toFixed(1):null;
+            const rateColor=laborRate
+              ? Number(laborRate)<=25?"#a0ffc0":Number(laborRate)<=30?"#ffe5a0":"#ffa0a0"
+              : "#b8d4f0";
+            return(
+              <div style={{background:"rgba(255,255,255,0.15)",borderRadius:10,padding:"10px 14px",marginBottom:8,
+                display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:10,color:"#b8d4f0",marginBottom:2}}>人件費率</div>
+                  <div style={{fontSize:11,color:"#b8d4f0"}}>
+                    ¥{Math.round(laborCost).toLocaleString()} ÷ ¥{ms.totalBudget.toLocaleString()}
+                  </div>
+                </div>
+                <div style={{fontSize:28,fontWeight:900,color:rateColor}}>
+                  {laborRate ? `${laborRate}%` : "—"}
+                </div>
+              </div>
+            );
+          })()}
+
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
             {[
               {l:"仕込み時間",v:toHHMM(ms.prepM)||"—",c:"#ffe5a0"},
