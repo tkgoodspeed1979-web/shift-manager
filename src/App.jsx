@@ -163,8 +163,8 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
 
   const staffCount=sortedEmployees.length;
   const fs=staffCount<=8?10:staffCount<=12?9:staffCount<=16?8:7;
-  const nameFs=staffCount<=8?13:staffCount<=12?12:staffCount<=16?11:10;
-  const rh=staffCount<=8?44:staffCount<=12?38:staffCount<=16?34:28;
+  const nameFs=staffCount<=8?14:staffCount<=12?13:staffCount<=16?12:11;
+  const rh=staffCount<=8?32:staffCount<=12?28:staffCount<=16?24:20;
 
   const cellStyle=(t)=>{
     if(t==="off")      return {bg:"#e0e0e0",bd:"#999"};
