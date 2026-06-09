@@ -148,34 +148,16 @@ function StaffList({employees,setEmployees}){
 /* ─────────────────────────────────────────
    メインコンポーネント
 ───────────────────────────────────────── */
-/* ── PdfTable：自動スケール縮小でiPhone1画面に収める ── */
+/* ── PdfTable：固定比率レイアウトで確実に1画面に収める ── */
 function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolved,calcWork,toHHMM,empMins,dayStats,isSun,isSat,dow,ROLES}){
-  const containerRef=useRef(null);
-  const tableRef=useRef(null);
-  const [scale,setScale]=useState(1);
-
-  const calcScale=useCallback(()=>{
-    if(!containerRef.current||!tableRef.current) return;
-    // 一旦scale=1に戻してから実際の幅を計測
-    tableRef.current.style.transform="scale(1)";
-    tableRef.current.style.width="max-content";
-    const cw=containerRef.current.offsetWidth;
-    const tw=tableRef.current.scrollWidth;
-    const newScale=tw>0?Math.min(1, cw/tw):1;
-    setScale(newScale);
-  },[]);
-
-  useEffect(()=>{
-    // 初回レンダー後に少し待ってから計算
-    const t1=setTimeout(calcScale, 50);
-    const t2=setTimeout(calcScale, 300);
-    return ()=>{ clearTimeout(t1); clearTimeout(t2); };
-  },[sortedEmployees, days]);
-
   const staffCount=sortedEmployees.length;
-  const fs=staffCount<=8?9:staffCount<=12?8:staffCount<=16?7:6;
-  const nameFs=staffCount<=8?11:staffCount<=12?10:staffCount<=16?9:8;
-  const rh=staffCount<=8?30:staffCount<=12?26:staffCount<=16?22:18;
+  const dayCount=days.length;
+  const namePct=18;
+  const totalPct=6;
+  const dayPct=((100-namePct-totalPct)/dayCount).toFixed(2);
+  const fs=staffCount<=10?8:staffCount<=15?7:6;
+  const nameFs=staffCount<=10?10:staffCount<=15?9:8;
+  const rh=staffCount<=10?28:staffCount<=15?24:20;
 
   const cellStyle=(t)=>{
     if(t==="off")      return {bg:"#e0e0e0",bd:"#999"};
@@ -186,78 +168,77 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
   };
 
   return(
-    <div ref={containerRef} style={{width:"100%",overflow:"hidden"}}>
-      <div ref={tableRef} style={{
-        transformOrigin:"top left",
-        transform:`scale(${scale})`,
-        width:"max-content",
-        height: scale<1 ? `${scale*100}%` : "auto",
-      }}>
-        <div style={{fontFamily:"-apple-system,sans-serif",fontSize:10,fontWeight:700,color:"#2c5f8a",marginBottom:4,padding:"0 2px"}}>
-          {year}年{month}月 シフト表（{period==="first"?`前半 1〜15日`:`後半 16〜${daysInMonth}日`}）
-        </div>
-        <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"auto"}}>
-          <thead>
-            <tr style={{background:"#2c5f8a"}}>
-              <th style={{padding:"2px 4px",textAlign:"left",color:"#fff",border:"1px solid #4a7faa",fontSize:fs,whiteSpace:"nowrap",width:70,maxWidth:70}}>名前/番号</th>
-              {days.map(d=>{
-                const dw_=dow(year,month,d);
-                const c=isSun(year,month,d)?"#ffb3b3":isSat(year,month,d)?"#b3d4ff":"#b8d4f0";
-                return(
-                  <th key={d} style={{padding:"2px 1px",textAlign:"center",color:"#fff",border:"1px solid #4a7faa",fontSize:fs,minWidth:fs*3.5}}>
-                    {d}<br/><span style={{fontSize:fs-1,color:c}}>{dw_}</span>
-                  </th>
-                );
-              })}
-              <th style={{padding:"2px",textAlign:"center",color:"#fff",border:"1px solid #4a7faa",fontSize:fs}}>合計</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedEmployees.map(emp=>{
-              const ri=ROLES[emp.role]||ROLES.business;
+    <div style={{width:"100%",fontFamily:"-apple-system,sans-serif"}}>
+      <div style={{fontSize:11,fontWeight:700,color:"#2c5f8a",marginBottom:4}}>
+        {year}年{month}月 シフト表（{period==="first"?`前半 1〜15日`:`後半 16〜${daysInMonth}日`}）
+      </div>
+      <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"fixed"}}>
+        <colgroup>
+          <col style={{width:`${namePct}%`}}/>
+          {days.map(d=><col key={d} style={{width:`${dayPct}%`}}/>)}
+          <col style={{width:`${totalPct}%`}}/>
+        </colgroup>
+        <thead>
+          <tr style={{background:"#2c5f8a"}}>
+            <th style={{padding:"2px 2px",textAlign:"left",color:"#fff",border:"1px solid #4a7faa",fontSize:fs,overflow:"hidden"}}>名前</th>
+            {days.map(d=>{
+              const dw_=dow(year,month,d);
+              const c=isSun(year,month,d)?"#ffb3b3":isSat(year,month,d)?"#b3d4ff":"#b8d4f0";
               return(
-                <tr key={emp.id}>
-                  <td style={{padding:"2px 4px",border:"2px solid #aaa",whiteSpace:"nowrap",borderLeft:`3px solid ${ri.border}`,background:"#f8fafc",height:rh,width:70,maxWidth:70,overflow:"hidden"}}>
-                    <b style={{fontSize:nameFs,color:"#1e293b",fontWeight:800,display:"block",overflow:"hidden",textOverflow:"ellipsis"}}>{emp.name}</b>
-                    <span style={{fontSize:nameFs-2,color:"#64748b",fontWeight:500}}>{emp.empNo}</span>
-                  </td>
-                  {days.map(d=>{
-                    const s=gs(emp.id,d),t=resolved(emp.id,d);
-                    const hasShift=s.start||s.type;
-                    const {bg,bd}=hasShift?cellStyle(t):{bg:"#fff",bd:"#ccc"};
-                    const w=calcWork(s.start,s.end);
-                    return(
-                      <td key={d} style={{padding:"1px",textAlign:"center",border:`2px solid ${bd}`,background:bg,fontSize:fs-1,lineHeight:1.2,height:rh}}>
-                        {t==="off"?<span style={{color:"#555",fontWeight:700}}>休</span>
-                        :s.start?<><span style={{color:"#1e3a5f",fontWeight:700,display:"block"}}>{s.start}</span><span style={{color:"#1e3a5f",fontWeight:700,display:"block"}}>{s.end||""}</span><b style={{color:"#c05000"}}>{toHHMM(w)||""}</b></>
-                        :null}
-                      </td>
-                    );
-                  })}
-                  <td style={{textAlign:"center",border:"2px solid #aaa",fontWeight:700,color:"#2c5f8a",padding:"1px",fontSize:fs,background:"#e8eef4",height:rh}}>
-                    {toHHMM(empMins(emp.id))||"—"}
-                  </td>
-                </tr>
+                <th key={d} style={{padding:"1px 0",textAlign:"center",color:"#fff",border:"1px solid #4a7faa",fontSize:fs}}>
+                  {d}<br/><span style={{fontSize:fs-1,color:c}}>{dw_}</span>
+                </th>
               );
             })}
-            {[
-              {l:"仕込み人数",c:"#7a5000",bg:"#fef3c7",bd:"#d97706",fn:d=>dayStats(d).prepCnt||"—"},
-              {l:"営業人数",  c:"#1e3a8a",bg:"#dbeafe",bd:"#2563eb",fn:d=>dayStats(d).bizCnt||"—"},
-            ].map(row=>(
-              <tr key={row.l} style={{background:row.bg}}>
-                <td style={{padding:"2px 4px",border:`2px solid ${row.bd}`,fontWeight:700,color:row.c,fontSize:fs,whiteSpace:"nowrap"}}>{row.l}</td>
-                {days.map(d=>(
-                  <td key={d} style={{textAlign:"center",border:`2px solid ${row.bd}`,fontSize:fs,fontWeight:700,color:row.c,padding:"1px",background:row.bg}}>{row.fn(d)}</td>
-                ))}
-                <td style={{border:`2px solid ${row.bd}`,background:row.bg}}/>
+            <th style={{padding:"1px",textAlign:"center",color:"#fff",border:"1px solid #4a7faa",fontSize:fs}}>計</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedEmployees.map(emp=>{
+            const ri=ROLES[emp.role]||ROLES.business;
+            return(
+              <tr key={emp.id}>
+                <td style={{padding:"1px 2px",border:"1px solid #bbb",borderLeft:`3px solid ${ri.border}`,background:"#f8fafc",height:rh,overflow:"hidden"}}>
+                  <div style={{fontSize:nameFs,color:"#1e293b",fontWeight:800,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{emp.name}</div>
+                  <div style={{fontSize:nameFs-2,color:"#64748b"}}>{emp.empNo}</div>
+                </td>
+                {days.map(d=>{
+                  const s=gs(emp.id,d),t=resolved(emp.id,d);
+                  const hasShift=s.start||s.type;
+                  const {bg,bd}=hasShift?cellStyle(t):{bg:"#fff",bd:"#ccc"};
+                  const w=calcWork(s.start,s.end);
+                  return(
+                    <td key={d} style={{padding:"1px 0",textAlign:"center",border:`1px solid ${bd}`,background:bg,fontSize:fs-1,lineHeight:1.2,height:rh,overflow:"hidden"}}>
+                      {t==="off"?<span style={{color:"#555",fontWeight:700,fontSize:fs}}>休</span>
+                      :s.start?<><span style={{color:"#1e3a5f",fontWeight:700,display:"block"}}>{s.start}</span><span style={{color:"#1e3a5f",fontWeight:700,display:"block"}}>{s.end||""}</span><b style={{color:"#c05000",fontSize:fs-1}}>{toHHMM(w)||""}</b></>
+                      :null}
+                    </td>
+                  );
+                })}
+                <td style={{textAlign:"center",border:"1px solid #bbb",fontWeight:700,color:"#2c5f8a",fontSize:fs,background:"#e8eef4",height:rh,overflow:"hidden"}}>
+                  {toHHMM(empMins(emp.id))||"—"}
+                </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+          {[
+            {l:"仕込み",c:"#7a5000",bg:"#fef3c7",bd:"#d97706",fn:d=>dayStats(d).prepCnt||"—"},
+            {l:"営業",  c:"#1e3a8a",bg:"#dbeafe",bd:"#2563eb",fn:d=>dayStats(d).bizCnt||"—"},
+          ].map(row=>(
+            <tr key={row.l} style={{background:row.bg}}>
+              <td style={{padding:"2px 3px",border:`1px solid ${row.bd}`,fontWeight:700,color:row.c,fontSize:fs}}>{row.l}人数</td>
+              {days.map(d=>(
+                <td key={d} style={{textAlign:"center",border:`1px solid ${row.bd}`,fontSize:fs,fontWeight:700,color:row.c,background:row.bg}}>{row.fn(d)}</td>
+              ))}
+              <td style={{border:`1px solid ${row.bd}`,background:row.bg}}/>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
+
 
 export default function ShiftManager(){
   const now=new Date();
