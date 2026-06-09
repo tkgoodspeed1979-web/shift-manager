@@ -173,9 +173,9 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
   },[sortedEmployees, days]);
 
   const staffCount=sortedEmployees.length;
-  const fs=staffCount<=8?10:staffCount<=12?9:staffCount<=16?8:7;
-  const nameFs=staffCount<=8?14:staffCount<=12?13:staffCount<=16?12:11;
-  const rh=staffCount<=8?32:staffCount<=12?28:staffCount<=16?24:20;
+  const fs=staffCount<=8?9:staffCount<=12?8:staffCount<=16?7:6;
+  const nameFs=staffCount<=8?11:staffCount<=12?10:staffCount<=16?9:8;
+  const rh=staffCount<=8?30:staffCount<=12?26:staffCount<=16?22:18;
 
   const cellStyle=(t)=>{
     if(t==="off")      return {bg:"#e0e0e0",bd:"#999"};
@@ -199,7 +199,7 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
         <table style={{borderCollapse:"collapse",width:"100%",tableLayout:"auto"}}>
           <thead>
             <tr style={{background:"#2c5f8a"}}>
-              <th style={{padding:"2px 4px",textAlign:"left",color:"#fff",border:"1px solid #4a7faa",fontSize:fs,whiteSpace:"nowrap",minWidth:60}}>名前/番号</th>
+              <th style={{padding:"2px 4px",textAlign:"left",color:"#fff",border:"1px solid #4a7faa",fontSize:fs,whiteSpace:"nowrap",width:70,maxWidth:70}}>名前/番号</th>
               {days.map(d=>{
                 const dw_=dow(year,month,d);
                 const c=isSun(year,month,d)?"#ffb3b3":isSat(year,month,d)?"#b3d4ff":"#b8d4f0";
@@ -217,8 +217,8 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
               const ri=ROLES[emp.role]||ROLES.business;
               return(
                 <tr key={emp.id}>
-                  <td style={{padding:"2px 5px",border:"2px solid #aaa",whiteSpace:"nowrap",borderLeft:`3px solid ${ri.border}`,background:"#f8fafc",height:rh}}>
-                    <b style={{fontSize:nameFs,color:"#1e293b",fontWeight:800}}>{emp.name}</b><br/>
+                  <td style={{padding:"2px 4px",border:"2px solid #aaa",whiteSpace:"nowrap",borderLeft:`3px solid ${ri.border}`,background:"#f8fafc",height:rh,width:70,maxWidth:70,overflow:"hidden"}}>
+                    <b style={{fontSize:nameFs,color:"#1e293b",fontWeight:800,display:"block",overflow:"hidden",textOverflow:"ellipsis"}}>{emp.name}</b>
                     <span style={{fontSize:nameFs-2,color:"#64748b",fontWeight:500}}>{emp.empNo}</span>
                   </td>
                   {days.map(d=>{
