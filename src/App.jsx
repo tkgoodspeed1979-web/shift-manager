@@ -820,17 +820,27 @@ export default function ShiftManager(){
           <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>📊 {year}年{month}月 月間集計</div>
 
           {/* 平均時給入力 */}
-          <div style={{background:"rgba(255,255,255,0.15)",borderRadius:10,padding:"10px 14px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{color:"#b8d4f0",fontSize:11,fontWeight:700}}>平均時給</div>
-            <div style={{display:"flex",alignItems:"center",gap:4}}>
-              <span style={{color:"#fff",fontSize:13}}>¥</span>
-              <input type="number" value={hourlyWage}
-                onChange={e=>setHourlyWage(Number(e.target.value))}
-                style={{width:80,padding:"6px 8px",borderRadius:8,border:"none",
-                  background:"rgba(255,255,255,0.2)",color:"#fff",fontSize:16,fontWeight:700,textAlign:"right"}}/>
-              <span style={{color:"#b8d4f0",fontSize:11}}>円/h</span>
-            </div>
-          </div>
+          {(()=>{
+            const [draftWage,setDraftWage]=useState(String(hourlyWage));
+            return(
+              <div style={{background:"rgba(255,255,255,0.15)",borderRadius:10,padding:"10px 14px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{color:"#b8d4f0",fontSize:11,fontWeight:700}}>平均時給</div>
+                <div style={{display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{color:"#fff",fontSize:13}}>¥</span>
+                  <input type="number" value={draftWage}
+                    onChange={e=>setDraftWage(e.target.value)}
+                    onBlur={e=>{
+                      const v=Number(e.target.value);
+                      if(v>0){ setHourlyWage(v); setDraftWage(String(v)); }
+                      else setDraftWage(String(hourlyWage));
+                    }}
+                    style={{width:80,padding:"6px 8px",borderRadius:8,border:"none",
+                      background:"rgba(255,255,255,0.2)",color:"#fff",fontSize:16,fontWeight:700,textAlign:"right"}}/>
+                  <span style={{color:"#b8d4f0",fontSize:11}}>円/h</span>
+                </div>
+              </div>
+            );
+          })()}
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
             {[
