@@ -152,8 +152,8 @@ function StaffList({employees,setEmployees}){
 function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolved,calcWork,toHHMM,empMins,dayStats,isSun,isSat,dow,ROLES}){
   const staffCount=sortedEmployees.length;
   const dayCount=days.length;
-  const namePct=18;
-  const totalPct=6;
+  const namePct=14;
+  const totalPct=5;
   const dayPct=((100-namePct-totalPct)/dayCount).toFixed(2);
   const fs=staffCount<=10?8:staffCount<=15?7:6;
   const nameFs=staffCount<=10?10:staffCount<=15?9:8;
