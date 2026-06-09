@@ -154,12 +154,23 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
   const tableRef=useRef(null);
   const [scale,setScale]=useState(1);
 
-  useEffect(()=>{
+  const calcScale=useCallback(()=>{
     if(!containerRef.current||!tableRef.current) return;
+    // 一旦scale=1に戻してから実際の幅を計測
+    tableRef.current.style.transform="scale(1)";
+    tableRef.current.style.width="max-content";
     const cw=containerRef.current.offsetWidth;
-    const tw=tableRef.current.offsetWidth;
-    if(tw>cw) setScale(cw/tw);
+    const tw=tableRef.current.scrollWidth;
+    const newScale=tw>0?Math.min(1, cw/tw):1;
+    setScale(newScale);
   },[]);
+
+  useEffect(()=>{
+    // 初回レンダー後に少し待ってから計算
+    const t1=setTimeout(calcScale, 50);
+    const t2=setTimeout(calcScale, 300);
+    return ()=>{ clearTimeout(t1); clearTimeout(t2); };
+  },[sortedEmployees, days]);
 
   const staffCount=sortedEmployees.length;
   const fs=staffCount<=8?10:staffCount<=12?9:staffCount<=16?8:7;
@@ -179,7 +190,8 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
       <div ref={tableRef} style={{
         transformOrigin:"top left",
         transform:`scale(${scale})`,
-        width: scale<1 ? `${100/scale}%` : "100%",
+        width:"max-content",
+        height: scale<1 ? `${scale*100}%` : "auto",
       }}>
         <div style={{fontFamily:"-apple-system,sans-serif",fontSize:10,fontWeight:700,color:"#2c5f8a",marginBottom:4,padding:"0 2px"}}>
           {year}年{month}月 シフト表（{period==="first"?`前半 1〜15日`:`後半 16〜${daysInMonth}日`}）
