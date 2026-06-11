@@ -261,6 +261,8 @@ export default function ShiftManager(){
   const [loadText,setLoadText]=useState("");
   const [clipboard,setClipboard]=useState(null);
   const [pastedCells,setPastedCells]=useState(new Set());
+  const [budgetClipboard,setBudgetClipboard]=useState(null); // 売上予算コピペ用
+  const [pastedBudgets,setPastedBudgets]=useState(new Set());
   const [copyMode,setCopyMode]=useState(false);
   const [showPdfModal,setShowPdfModal]=useState(false);
   const [syncStatus,setSyncStatus]=useState("接続中...");
@@ -1120,14 +1122,47 @@ export default function ShiftManager(){
               <tr style={{background:"#f8f0ff"}}>
                 <td style={{padding:"5px 6px",position:"sticky",left:0,background:"#f8f0ff",
                   borderRight:"2px solid #dce6f0",borderTop:"1px solid #dce6f0",
-                  fontSize:10,fontWeight:700,color:"#6a0dad",whiteSpace:"nowrap"}}>売上予算</td>
-                {days.map(d=>(
-                  <td key={d} style={{padding:"2px",borderLeft:"1px solid #e8eef4",borderTop:"1px solid #dce6f0"}}>
-                    <input type="number" value={budgets[d]||""} onChange={e=>setBudgets(p=>({...p,[d]:e.target.value}))}
-                      placeholder="0" style={{width:"100%",background:"transparent",border:"none",
-                        color:"#6a0dad",fontSize:10,textAlign:"center",fontWeight:600,padding:"4px 0",boxSizing:"border-box"}}/>
-                  </td>
-                ))}
+                  fontSize:10,fontWeight:700,color:"#6a0dad",whiteSpace:"nowrap"}}>
+                  売上予算
+                  {budgetClipboard&&(
+                    <button onClick={()=>{setBudgetClipboard(null);setPastedBudgets(new Set());}}
+                      style={{marginLeft:4,fontSize:9,background:"#16a34a",border:"none",borderRadius:4,
+                        color:"#fff",padding:"1px 4px",cursor:"pointer"}}>解除</button>
+                  )}
+                </td>
+                {days.map(d=>{
+                  const isPasted=pastedBudgets.has(String(d));
+                  const isBudgetTarget=!!budgetClipboard;
+                  return(
+                    <td key={d} style={{padding:"2px",borderLeft:"1px solid #e8eef4",borderTop:"1px solid #dce6f0",
+                      background:isPasted?"#bbf7d0":isBudgetTarget?"rgba(22,163,74,0.06)":"transparent"}}>
+                      {isBudgetTarget?(
+                        // コピーモード中：タップで貼付
+                        <button onClick={()=>{
+                          setBudgets(p=>({...p,[d]:budgetClipboard}));
+                          setPastedBudgets(prev=>new Set([...prev,String(d)]));
+                        }}
+                          style={{width:"100%",padding:"4px 0",background:"transparent",border:"none",
+                            cursor:"pointer",fontSize:10,fontWeight:700,
+                            color:isPasted?"#15803d":"#16a34a"}}>
+                          {isPasted?`¥${Number(budgetClipboard).toLocaleString()}`:"貼付"}
+                        </button>
+                      ):(
+                        // 通常モード：入力 or 長押しでコピー
+                        <input type="number" value={budgets[d]||""}
+                          onChange={e=>setBudgets(p=>({...p,[d]:e.target.value}))}
+                          onContextMenu={e=>{
+                            e.preventDefault();
+                            if(budgets[d]) setBudgetClipboard(budgets[d]);
+                          }}
+                          placeholder="0"
+                          style={{width:"100%",background:"transparent",border:"none",
+                            color:"#6a0dad",fontSize:10,textAlign:"center",fontWeight:600,
+                            padding:"4px 0",boxSizing:"border-box"}}/>
+                      )}
+                    </td>
+                  );
+                })}
                 <td style={{borderLeft:"2px solid #dce6f0",borderTop:"1px solid #dce6f0"}}/>
               </tr>
               {/* 人時売上高 */}
@@ -1211,7 +1246,7 @@ export default function ShiftManager(){
         ))}
       </div>
 
-      {/* コピペ中バナー */}
+      {/* シフトコピペ中バナー */}
       {clipboard&&(
         <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",
           width:"100%",maxWidth:480,background:"#16a34a",zIndex:150,
@@ -1226,6 +1261,29 @@ export default function ShiftManager(){
             </div>
           </div>
           <button onClick={()=>{setClipboard(null);setPastedCells(new Set());}}
+            style={{background:"rgba(255,255,255,0.25)",border:"none",borderRadius:8,
+              color:"#fff",padding:"6px 12px",cursor:"pointer",fontWeight:700,fontSize:12,
+              whiteSpace:"nowrap",marginLeft:8}}>
+            ✕ 解除
+          </button>
+        </div>
+      )}
+
+      {/* 売上予算コピペ中バナー */}
+      {budgetClipboard&&(
+        <div style={{position:"fixed",top:clipboard?48:0,left:"50%",transform:"translateX(-50%)",
+          width:"100%",maxWidth:480,background:"#7c3aed",zIndex:149,
+          padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",
+          boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
+          <div>
+            <div style={{color:"#fff",fontWeight:700,fontSize:12}}>
+              💰 ¥{Number(budgetClipboard).toLocaleString()} コピー中
+            </div>
+            <div style={{color:"#e9d5ff",fontSize:10,marginTop:1}}>
+              貼り付けたい日付の「貼付」をタップ ／ 解除で終了
+            </div>
+          </div>
+          <button onClick={()=>{setBudgetClipboard(null);setPastedBudgets(new Set());}}
             style={{background:"rgba(255,255,255,0.25)",border:"none",borderRadius:8,
               color:"#fff",padding:"6px 12px",cursor:"pointer",fontWeight:700,fontSize:12,
               whiteSpace:"nowrap",marginLeft:8}}>
