@@ -261,8 +261,10 @@ export default function ShiftManager(){
   const [loadText,setLoadText]=useState("");
   const [clipboard,setClipboard]=useState(null);
   const [pastedCells,setPastedCells]=useState(new Set());
-  const [budgetClipboard,setBudgetClipboard]=useState(null); // 売上予算コピペ用
+  const [budgetClipboard,setBudgetClipboard]=useState(null);
   const [pastedBudgets,setPastedBudgets]=useState(new Set());
+  const [showBudgetModal,setShowBudgetModal]=useState(false);
+  const [dowBudgets,setDowBudgets]=useState({0:"",1:"",2:"",3:"",4:"",5:"",6:""}); // 曜日別予算 0=日,1=月...6=土
   const [copyMode,setCopyMode]=useState(false);
   const [showPdfModal,setShowPdfModal]=useState(false);
   const [syncStatus,setSyncStatus]=useState("接続中...");
@@ -624,7 +626,8 @@ export default function ShiftManager(){
             <div style={{display:"flex",gap:6,marginBottom:6}}>
               <button onClick={()=>{
                 const s=gs(empId,day);
-                if(s.start||s.end){
+                // 時間あり or 休み区分のどちらでもコピー可能
+                if(s.start||s.end||s.type){
                   setClipboard({start:s.start||"",end:s.end||"",type:s.type||""});
                   setPastedCells(new Set());
                   setEditCell(null);
@@ -1123,11 +1126,16 @@ export default function ShiftManager(){
                 <td style={{padding:"5px 6px",position:"sticky",left:0,background:"#f8f0ff",
                   borderRight:"2px solid #dce6f0",borderTop:"1px solid #dce6f0",
                   fontSize:10,fontWeight:700,color:"#6a0dad",whiteSpace:"nowrap"}}>
-                  売上予算
+                  <div>売上予算</div>
+                  <button onClick={()=>setShowBudgetModal(true)}
+                    style={{fontSize:8,background:"#6a0dad",border:"none",borderRadius:4,
+                      color:"#fff",padding:"2px 4px",cursor:"pointer",marginTop:2,whiteSpace:"nowrap"}}>
+                    曜日一括
+                  </button>
                   {budgetClipboard&&(
                     <button onClick={()=>{setBudgetClipboard(null);setPastedBudgets(new Set());}}
-                      style={{marginLeft:4,fontSize:9,background:"#16a34a",border:"none",borderRadius:4,
-                        color:"#fff",padding:"1px 4px",cursor:"pointer"}}>解除</button>
+                      style={{marginLeft:2,fontSize:8,background:"#16a34a",border:"none",borderRadius:4,
+                        color:"#fff",padding:"2px 4px",cursor:"pointer"}}>解除</button>
                   )}
                 </td>
                 {days.map(d=>{
@@ -1389,6 +1397,74 @@ export default function ShiftManager(){
               empMins={empMins} dayStats={dayStats}
               isSun={isSun} isSat={isSat} dow={dow} ROLES={ROLES}
             />
+          </div>
+        </div>
+      )}
+
+      {/* 売上予算 曜日一括入力モーダル */}
+      {showBudgetModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:400,display:"flex",alignItems:"flex-end"}}
+          onClick={()=>setShowBudgetModal(false)}>
+          <div style={{background:"#fff",width:"100%",maxWidth:480,margin:"0 auto",
+            borderRadius:"20px 20px 0 0",padding:"0 0 32px",boxShadow:"0 -4px 32px rgba(0,0,0,0.18)"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{background:"#6a0dad",borderRadius:"20px 20px 0 0",padding:"16px 20px",
+              display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{color:"#fff",fontWeight:700,fontSize:16}}>売上予算 曜日一括入力</div>
+                <div style={{color:"#e9d5ff",fontSize:11,marginTop:2}}>曜日ごとに予算を設定して一括反映</div>
+              </div>
+              <button onClick={()=>setShowBudgetModal(false)}
+                style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:8,
+                  width:32,height:32,color:"#fff",fontSize:18,cursor:"pointer"}}>✕</button>
+            </div>
+            <div style={{padding:"16px"}}>
+              {/* 曜日別入力 */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:16}}>
+                {WEEKDAYS.map((w,i)=>{
+                  const isSun_=i===0, isSat_=i===6;
+                  return(
+                    <div key={i} style={{textAlign:"center"}}>
+                      <div style={{fontSize:12,fontWeight:700,marginBottom:4,
+                        color:isSun_?"#e74c3c":isSat_?"#3b82f6":"#2c3e50"}}>{w}</div>
+                      <input type="number" value={dowBudgets[i]}
+                        onChange={e=>setDowBudgets(p=>({...p,[i]:e.target.value}))}
+                        placeholder="0"
+                        style={{width:"100%",padding:"8px 2px",border:"1.5px solid #dce6f0",
+                          borderRadius:8,fontSize:11,textAlign:"center",color:"#6a0dad",
+                          fontWeight:600,boxSizing:"border-box"}}/>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{fontSize:11,color:"#888",marginBottom:12,textAlign:"center"}}>
+                ※ 入力した予算を現在の期間（{period==="first"?`1〜15日`:`16〜${daysInMonth}日`}）に反映します
+              </div>
+              {/* 反映ボタン */}
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{
+                  // 空欄の曜日は上書きしない、入力済みの曜日のみ反映
+                  const newBudgets={...budgets};
+                  days.forEach(d=>{
+                    const dayOfWeek=new Date(year,month-1,d).getDay();
+                    const v=dowBudgets[dayOfWeek];
+                    if(v!=="") newBudgets[d]=v;
+                  });
+                  setBudgets(newBudgets);
+                  setShowBudgetModal(false);
+                }} style={{flex:2,padding:"13px",borderRadius:10,border:"none",
+                  background:"#6a0dad",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>
+                  ✓ 反映する
+                </button>
+                <button onClick={()=>{
+                  // 全曜日をクリア
+                  setDowBudgets({0:"",1:"",2:"",3:"",4:"",5:"",6:""});
+                }} style={{flex:1,padding:"13px",borderRadius:10,border:"1px solid #dce6f0",
+                  background:"#f5f5f5",color:"#888",fontWeight:600,cursor:"pointer",fontSize:13}}>
+                  入力クリア
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
