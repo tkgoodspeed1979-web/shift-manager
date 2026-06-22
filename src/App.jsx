@@ -242,9 +242,18 @@ function PdfTable({sortedEmployees,days,year,month,period,daysInMonth,gs,resolve
 
 export default function ShiftManager(){
   const now=new Date();
-  const [year,setYear]   =useState(now.getFullYear());
-  const [month,setMonth] =useState(now.getMonth()+1);
+  const [yearFirst,setYearFirst]=useState(now.getFullYear());
+  const [monthFirst,setMonthFirst]=useState(now.getMonth()+1);
+  const [yearSecond,setYearSecond]=useState(now.getFullYear());
+  const [monthSecond,setMonthSecond]=useState(now.getMonth()+1);
   const [period,setPeriod]=useState("first");
+  const [showClearModal,setShowClearModal]=useState(false);
+
+  // 現在の期間の年月
+  const year=period==="first"?yearFirst:yearSecond;
+  const month=period==="first"?monthFirst:monthSecond;
+  const setYear=period==="first"?setYearFirst:setYearSecond;
+  const setMonth=period==="first"?setMonthFirst:setMonthSecond;
   const [employees,setEmployees]=useState(INIT_EMPLOYEES);
   const [shifts,setShifts]  =useState({});
   const [budgets,setBudgets]=useState({});
@@ -1018,10 +1027,12 @@ export default function ShiftManager(){
                 style={{background:"transparent",border:"none",color:"#fff",fontSize:14,fontWeight:700}}>
                 {[2024,2025,2026,2027].map(y=><option key={y} style={{color:"#000"}}>{y}</option>)}
               </select>
-              <select value={month} onChange={e=>setMonth(Number(e.target.value))}
-                style={{background:"transparent",border:"none",color:"#fff",fontSize:14,fontWeight:700}}>
-                {Array.from({length:12},(_,i)=><option key={i+1} value={i+1} style={{color:"#000"}}>{i+1}月</option>)}
-              </select>
+              {view!=="table"&&(
+                <select value={month} onChange={e=>setMonth(Number(e.target.value))}
+                  style={{background:"transparent",border:"none",color:"#fff",fontSize:14,fontWeight:700}}>
+                  {Array.from({length:12},(_,i)=><option key={i+1} value={i+1} style={{color:"#000"}}>{i+1}月</option>)}
+                </select>
+              )}
             </div>
           </div>
           <div style={{display:"flex",gap:4}}>
@@ -1032,11 +1043,27 @@ export default function ShiftManager(){
               {syncStatus.includes("✓")?"☁️":"⏳"} {syncStatus}
             </div>
             {view==="table"&&(
-              <button onClick={printPDF}
-                style={{height:34,padding:"0 8px",borderRadius:8,border:"none",cursor:"pointer",
-                  background:"rgba(255,255,255,0.2)",color:"#fff",fontWeight:700,fontSize:11,whiteSpace:"nowrap"}}>
-                🖨 PDF
-              </button>
+              <>
+                <button onClick={printPDF}
+                  style={{height:34,padding:"0 8px",borderRadius:8,border:"none",cursor:"pointer",
+                    background:"rgba(255,255,255,0.2)",color:"#fff",fontWeight:700,fontSize:11,whiteSpace:"nowrap"}}>
+                  🖨 PDF
+                </button>
+                <button onClick={()=>{
+                  if(!window.confirm(`${year}年${month}月${period==="first"?"前半(1〜15日)":"後半(16〜"+daysInMonth+"日)"}のシフトを全てクリアしますか？`)) return;
+                  const newShifts={...shifts};
+                  days.forEach(d=>{
+                    employees.forEach(emp=>{
+                      delete newShifts[sk(emp.id,d)];
+                    });
+                  });
+                  setShifts(newShifts);
+                }}
+                  style={{height:34,padding:"0 8px",borderRadius:8,border:"none",cursor:"pointer",
+                    background:"rgba(239,68,68,0.4)",color:"#fff",fontWeight:700,fontSize:11,whiteSpace:"nowrap"}}>
+                  🗑 一括クリア
+                </button>
+              </>
             )}
             {[["table","📋"],["employees","👥"],["stats","📊"]].map(([v,icon])=>(
               <button key={v} onClick={()=>setView(v)}
@@ -1048,16 +1075,50 @@ export default function ShiftManager(){
           </div>
         </div>
         {view==="table"&&(
-          <div style={{display:"flex"}}>
-            {[["first",`前半　1〜15日`],["second",`後半　16〜${daysInMonth}日`]].map(([k,label])=>(
-              <button key={k} onClick={()=>setPeriod(k)}
-                style={{flex:1,padding:"9px 0",border:"none",cursor:"pointer",
-                  background:period===k?"#fff":"rgba(255,255,255,0.1)",
-                  color:period===k?"#2c5f8a":"#b8d4f0",fontWeight:700,fontSize:12,
-                  borderRadius:period===k?"8px 8px 0 0":"0",transition:"all 0.15s"}}>
-                {label}
-              </button>
-            ))}
+          <div style={{display:"flex",alignItems:"stretch"}}>
+            {[["first",`前半`,yearFirst,monthFirst,setYearFirst,setMonthFirst],
+              ["second",`後半`,yearSecond,monthSecond,setYearSecond,setMonthSecond]
+            ].map(([k,label,yr,mo,setYr,setMo])=>{
+              const dim=new Date(yr,mo,0).getDate();
+              return(
+                <div key={k} style={{flex:1,display:"flex",flexDirection:"column"}}>
+                  <button onClick={()=>setPeriod(k)}
+                    style={{padding:"6px 0 2px",border:"none",cursor:"pointer",
+                      background:period===k?"#fff":"rgba(255,255,255,0.1)",
+                      color:period===k?"#2c5f8a":"#b8d4f0",fontWeight:700,fontSize:12,
+                      borderRadius:period===k?"8px 8px 0 0":"0",transition:"all 0.15s"}}>
+                    {label}　
+                    <span style={{fontSize:10,fontWeight:600,color:period===k?"#2c5f8a":"#b8d4f0"}}>
+                      {k==="first"?`1〜15日`:`16〜${dim}日`}
+                    </span>
+                  </button>
+                  {period===k&&(
+                    <div style={{background:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 4px 0"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}>
+                        <button onClick={()=>{
+                          if(mo===1){setMo(12);setYr(y=>y-1);}
+                          else setMo(m=>m-1);
+                        }} style={{background:"#f0f4f8",border:"1px solid #dce6f0",borderRadius:6,
+                          padding:"2px 8px",cursor:"pointer",fontSize:13,color:"#2c5f8a",fontWeight:700}}>‹</button>
+                        <span style={{fontSize:12,fontWeight:700,color:"#2c5f8a",minWidth:52,textAlign:"center"}}>
+                          {yr}年{mo}月
+                        </span>
+                        <button onClick={()=>{
+                          if(mo===12){setMo(1);setYr(y=>y+1);}
+                          else setMo(m=>m+1);
+                        }} style={{background:"#f0f4f8",border:"1px solid #dce6f0",borderRadius:6,
+                          padding:"2px 8px",cursor:"pointer",fontSize:13,color:"#2c5f8a",fontWeight:700}}>›</button>
+                      </div>
+                      <button onClick={()=>setShowClearModal(true)}
+                        style={{fontSize:10,background:"#fff5f5",border:"1px solid #ffcccc",borderRadius:6,
+                          padding:"3px 8px",cursor:"pointer",color:"#c0392b",fontWeight:600}}>
+                        🗑 クリア
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1397,6 +1458,85 @@ export default function ShiftManager(){
               empMins={empMins} dayStats={dayStats}
               isSun={isSun} isSat={isSat} dow={dow} ROLES={ROLES}
             />
+          </div>
+        </div>
+      )}
+
+      {/* 一括クリアモーダル */}
+      {showClearModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:400,display:"flex",alignItems:"flex-end"}}
+          onClick={()=>setShowClearModal(false)}>
+          <div style={{background:"#fff",width:"100%",maxWidth:480,margin:"0 auto",
+            borderRadius:"20px 20px 0 0",padding:"0 0 32px",boxShadow:"0 -4px 32px rgba(0,0,0,0.18)"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{background:"#c0392b",borderRadius:"20px 20px 0 0",padding:"16px 20px"}}>
+              <div style={{color:"#fff",fontWeight:700,fontSize:16}}>🗑 シフトの一括クリア</div>
+              <div style={{color:"#fca5a5",fontSize:11,marginTop:2}}>
+                {year}年{month}月 {period==="first"?`前半（1〜15日）`:`後半（16〜${daysInMonth}日）`}
+              </div>
+            </div>
+            <div style={{padding:"16px"}}>
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+                {/* 全スタッフ・全日クリア */}
+                <button onClick={()=>{
+                  if(!window.confirm(`${year}年${month}月${period==="first"?"前半":"後半"}の全シフトをクリアしますか？`)) return;
+                  const newShifts={...shifts};
+                  employees.forEach(emp=>{
+                    days.forEach(d=>{
+                      delete newShifts[sk(emp.id,d)];
+                    });
+                  });
+                  setShifts(newShifts);
+                  setShowClearModal(false);
+                }} style={{padding:"14px",borderRadius:12,border:"none",background:"#7f1d1d",
+                  color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,textAlign:"left"}}>
+                  🗑 全スタッフ・全日クリア
+                  <div style={{fontSize:11,color:"#fca5a5",marginTop:2}}>現在の期間のシフトを全て削除</div>
+                </button>
+
+                {/* 売上予算クリア */}
+                <button onClick={()=>{
+                  if(!window.confirm(`${year}年${month}月${period==="first"?"前半":"後半"}の売上予算をクリアしますか？`)) return;
+                  const newBudgets={...budgets};
+                  days.forEach(d=>{ delete newBudgets[d]; });
+                  setBudgets(newBudgets);
+                  setShowClearModal(false);
+                }} style={{padding:"14px",borderRadius:12,border:"none",background:"#4c1d95",
+                  color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,textAlign:"left"}}>
+                  🗑 売上予算のみクリア
+                  <div style={{fontSize:11,color:"#e9d5ff",marginTop:2}}>現在の期間の売上予算を全て削除</div>
+                </button>
+
+                {/* スタッフ別クリア */}
+                <div style={{background:"#f8fafc",borderRadius:12,padding:"12px"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#2c3e50",marginBottom:8}}>スタッフ別にクリア</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:200,overflowY:"auto"}}>
+                    {[...employees].sort((a,b)=>a.order-b.order).map(emp=>(
+                      <button key={emp.id} onClick={()=>{
+                        if(!window.confirm(`${emp.name}の${period==="first"?"前半":"後半"}シフトをクリアしますか？`)) return;
+                        const newShifts={...shifts};
+                        days.forEach(d=>{ delete newShifts[sk(emp.id,d)]; });
+                        setShifts(newShifts);
+                        setShowClearModal(false);
+                      }} style={{padding:"10px 12px",borderRadius:8,border:"1px solid #dce6f0",
+                        background:"#fff",cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div>
+                          <span style={{fontWeight:700,fontSize:13,color:"#2c3e50"}}>{emp.name}</span>
+                          <span style={{fontSize:11,color:"#888",marginLeft:8}}>{emp.empNo}</span>
+                        </div>
+                        <span style={{fontSize:11,color:"#c0392b",fontWeight:600}}>クリア</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={()=>setShowClearModal(false)}
+                style={{width:"100%",padding:"12px",borderRadius:10,border:"1px solid #dce6f0",
+                  background:"#f5f5f5",color:"#888",fontWeight:600,cursor:"pointer",fontSize:14}}>
+                キャンセル
+              </button>
+            </div>
           </div>
         </div>
       )}
