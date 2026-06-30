@@ -344,9 +344,10 @@ export default function ShiftManager(){
     return rd!==0?rd:a.order-b.order;
   });
 
-  const sk=(id,d)=>`${id}-${d}`;
+  const sk=(id,d)=>`${year}-${String(month).padStart(2,"0")}-${id}-${d}`;
   const gs=(id,d)=>shifts[sk(id,d)]||{};
   const ss=(id,d,f,v)=>setShifts(p=>({...p,[sk(id,d)]:{...(p[sk(id,d)]||{}),[f]:v}}));
+  const bk=(d)=>`${year}-${String(month).padStart(2,"0")}-${d}`; // 売上予算キー（年月含む）
 
   const resolved=(id,d)=>{
     const s=gs(id,d); if(s.type) return s.type;
@@ -381,7 +382,7 @@ export default function ShiftManager(){
       const t=resolved(e.id,d);
       return t==="through"||t==="business";
     }).length;
-    const budget=Number(budgets[d]||0);
+    const budget=Number(budgets[bk(d)]||0);
     const jinsho=totalMins>0&&budget>0?Math.round(budget/(totalMins/60)):null;
     const shikomi=prepM>0&&budget>0?Math.round(budget/(prepM/60)):null;
     return{prepCnt,bizCnt,totalMins,prepM,bizM,budget,jinsho,shikomi};
@@ -831,7 +832,22 @@ export default function ShiftManager(){
       <div style={{padding:"12px 12px 100px"}}>
         {/* 月間集計 */}
         <div style={{background:"#2c5f8a",borderRadius:14,padding:"14px",marginBottom:14,color:"#fff"}}>
-          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>📊 {year}年{month}月 月間集計</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontWeight:700,fontSize:14}}>📊 月間集計</div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <button onClick={()=>{
+                if(month===1){setMonth(12);setYear(y=>y-1);}
+                else setMonth(m=>m-1);
+              }} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:6,
+                padding:"2px 8px",cursor:"pointer",fontSize:13,color:"#fff",fontWeight:700}}>‹</button>
+              <span style={{fontSize:13,fontWeight:700,minWidth:60,textAlign:"center"}}>{year}年{month}月</span>
+              <button onClick={()=>{
+                if(month===12){setMonth(1);setYear(y=>y+1);}
+                else setMonth(m=>m+1);
+              }} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:6,
+                padding:"2px 8px",cursor:"pointer",fontSize:13,color:"#fff",fontWeight:700}}>›</button>
+            </div>
+          </div>
 
           {/* 平均時給入力 */}
           {(()=>{
@@ -1208,7 +1224,7 @@ export default function ShiftManager(){
                       {isBudgetTarget?(
                         // コピーモード中：タップで貼付
                         <button onClick={()=>{
-                          setBudgets(p=>({...p,[d]:budgetClipboard}));
+                          setBudgets(p=>({...p,[bk(d)]:budgetClipboard}));
                           setPastedBudgets(prev=>new Set([...prev,String(d)]));
                         }}
                           style={{width:"100%",padding:"4px 0",background:"transparent",border:"none",
@@ -1218,11 +1234,11 @@ export default function ShiftManager(){
                         </button>
                       ):(
                         // 通常モード：入力 or 長押しでコピー
-                        <input type="number" value={budgets[d]||""}
-                          onChange={e=>setBudgets(p=>({...p,[d]:e.target.value}))}
+                        <input type="number" value={budgets[bk(d)]||""}
+                          onChange={e=>setBudgets(p=>({...p,[bk(d)]:e.target.value}))}
                           onContextMenu={e=>{
                             e.preventDefault();
-                            if(budgets[d]) setBudgetClipboard(budgets[d]);
+                            if(budgets[bk(d)]) setBudgetClipboard(budgets[bk(d)]);
                           }}
                           placeholder="0"
                           style={{width:"100%",background:"transparent",border:"none",
@@ -1498,7 +1514,7 @@ export default function ShiftManager(){
                 <button onClick={()=>{
                   if(!window.confirm(`${year}年${month}月${period==="first"?"前半":"後半"}の売上予算をクリアしますか？`)) return;
                   const newBudgets={...budgets};
-                  days.forEach(d=>{ delete newBudgets[d]; });
+                  days.forEach(d=>{ delete newBudgets[bk(d)]; });
                   setBudgets(newBudgets);
                   setShowClearModal(false);
                 }} style={{padding:"14px",borderRadius:12,border:"none",background:"#4c1d95",
@@ -1588,7 +1604,7 @@ export default function ShiftManager(){
                   days.forEach(d=>{
                     const dayOfWeek=new Date(year,month-1,d).getDay();
                     const v=dowBudgets[dayOfWeek];
-                    if(v!=="") newBudgets[d]=v;
+                    if(v!=="") newBudgets[bk(d)]=v;
                   });
                   setBudgets(newBudgets);
                   setShowBudgetModal(false);
